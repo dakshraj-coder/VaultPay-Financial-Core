@@ -4,6 +4,25 @@ import "./App.css";
 const API_URL = "http://localhost:5000";
 
 function App() {
+  const [email, setEmail] = useState("client@vaultpay.com");
+  const [password, setPassword] = useState("Client@12345");
+
+  const [token, setToken] = useState("");
+  const [role, setRole] = useState("");
+
+  const [invoices, setInvoices] = useState([]);
+  const [clients, setClients] = useState([]);
+
+  const [message, setMessage] = useState("");
+
+  const [invoiceForm, setInvoiceForm] = useState({
+    invoiceNumber: "",
+    clientId: "",
+    amount: "",
+    description: "",
+    dueDate: "",
+  });
+
   useEffect(() => {
     const link = document.createElement("link");
 
@@ -18,12 +37,6 @@ function App() {
       document.head.removeChild(link);
     };
   }, []);
-
-  const [email, setEmail] = useState("client@vaultpay.com");
-  const [password, setPassword] = useState("Client@12345");
-  const [token, setToken] = useState("");
-  const [invoices, setInvoices] = useState([]);
-  const [message, setMessage] = useState("");
 
   const login = async () => {
     try {
@@ -44,9 +57,14 @@ function App() {
       }
 
       setToken(data.token);
+      setRole(data.user.role);
       setMessage("Login successful");
 
-      await loadInvoices(data.token);
+      if (data.user.role === "Admin") {
+        await loadClients(data.token);
+      } else {
+        await loadInvoices(data.token);
+      }
     } catch (error) {
       setMessage(error.message);
     }
@@ -54,19 +72,106 @@ function App() {
 
   const loadInvoices = async (authToken) => {
     try {
-      const response = await fetch(`${API_URL}/api/invoices/my-invoices`, {
+      const response = await fetch(
+        `${API_URL}/api/invoices/my-invoices`,
+        {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Failed to load invoices"
+        );
+      }
+
+      setInvoices(data.invoices || []);
+    } catch (error) {
+      setMessage(error.message);
+    }
+  };
+
+  const loadClients = async (authToken) => {
+    try {
+      const response = await fetch(
+        `${API_URL}/api/invoices/clients`,
+        {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Failed to load clients"
+        );
+      }
+
+      setClients(data.clients || []);
+    } catch (error) {
+      setMessage(error.message);
+    }
+  };
+
+  const handleInvoiceChange = (e) => {
+    const { name, value } = e.target;
+
+    setInvoiceForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  };
+
+  const createInvoice = async (e) => {
+    e.preventDefault();
+
+    try {
+      setMessage("Creating invoice...");
+
+      const response = await fetch(`${API_URL}/api/invoices`, {
+        method: "POST",
         headers: {
-          Authorization: `Bearer ${authToken}`,
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
+        body: JSON.stringify({
+          invoiceNumber: invoiceForm.invoiceNumber,
+          clientId: invoiceForm.clientId,
+          amount: Number(invoiceForm.amount),
+          description: invoiceForm.description,
+          dueDate: invoiceForm.dueDate,
+        }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Failed to load invoices");
+        throw new Error(
+          data.message || "Failed to create invoice"
+        );
       }
 
-      setInvoices(data.invoices);
+      setMessage("Invoice created successfully.");
+
+      setInvoices((current) => [
+        data.invoice,
+        ...current,
+      ]);
+
+      setInvoiceForm({
+        invoiceNumber: "",
+        clientId: "",
+        amount: "",
+        description: "",
+        dueDate: "",
+      });
     } catch (error) {
       setMessage(error.message);
     }
@@ -90,7 +195,8 @@ function App() {
 
       if (!response.ok) {
         throw new Error(
-          data.message || "Failed to create Razorpay order"
+          data.message ||
+            "Failed to create Razorpay order"
         );
       }
 
@@ -123,15 +229,18 @@ function App() {
                 body: JSON.stringify({
                   razorpay_order_id:
                     paymentResponse.razorpay_order_id,
+
                   razorpay_payment_id:
                     paymentResponse.razorpay_payment_id,
+
                   razorpay_signature:
                     paymentResponse.razorpay_signature,
                 }),
               }
             );
 
-            const verifyData = await verifyResponse.json();
+            const verifyData =
+              await verifyResponse.json();
 
             if (!verifyResponse.ok) {
               throw new Error(
@@ -164,17 +273,25 @@ function App() {
         },
       };
 
-      const razorpay = new window.Razorpay(options);
+      const razorpay =
+        new window.Razorpay(options);
 
-      razorpay.on("payment.failed", function (response) {
-        console.error("Payment failed:", response.error);
+      razorpay.on(
+        "payment.failed",
+        function (response) {
+          console.error(
+            "Payment failed:",
+            response.error
+          );
 
-        setMessage(
-          `Payment failed: ${
-            response.error.description || "Unknown error"
-          }`
-        );
-      });
+          setMessage(
+            `Payment failed: ${
+              response.error.description ||
+              "Unknown error"
+            }`
+          );
+        }
+      );
 
       razorpay.open();
     } catch (error) {
@@ -182,16 +299,33 @@ function App() {
     }
   };
 
-  return (
-    <div style={styles.page}>
-      {!token ? (
-        /* ================= LOGIN PAGE ================= */
+  const logout = () => {
+    setToken("");
+    setRole("");
+    setInvoices([]);
+    setClients([]);
+    setMessage("");
+
+    setInvoiceForm({
+      invoiceNumber: "",
+      clientId: "",
+      amount: "",
+      description: "",
+      dueDate: "",
+    });
+  };
+
+  if (!token) {
+    return (
+      <div style={styles.page}>
         <div style={styles.loginWrapper}>
           <div style={styles.loginBrand}>
             <div style={styles.logoMark}>V</div>
 
             <div>
-              <div style={styles.brandName}>VaultPay</div>
+              <div style={styles.brandName}>
+                VaultPay
+              </div>
 
               <div style={styles.brandSubtitle}>
                 Financial Core
@@ -202,7 +336,9 @@ function App() {
           <div style={styles.loginCard}>
             <div style={styles.loginHeader}>
               <div style={styles.securityBadge}>
-                <span style={styles.securityDot}></span>
+                <span
+                  style={styles.securityDot}
+                />
                 SECURE ACCESS
               </div>
 
@@ -210,9 +346,11 @@ function App() {
                 Welcome back
               </h1>
 
-              <p style={styles.loginDescription}>
-                Sign in to manage your VaultPay invoices and
-                payments.
+              <p
+                style={styles.loginDescription}
+              >
+                Sign in to manage your VaultPay
+                invoices and payments.
               </p>
             </div>
 
@@ -225,7 +363,9 @@ function App() {
                 style={styles.input}
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) =>
+                  setEmail(e.target.value)
+                }
                 placeholder="Enter your email"
               />
             </div>
@@ -256,8 +396,9 @@ function App() {
               onClick={login}
             >
               <span>Sign in</span>
-
-              <span style={styles.arrow}>→</span>
+              <span style={styles.arrow}>
+                →
+              </span>
             </button>
 
             {message && (
@@ -268,65 +409,93 @@ function App() {
           </div>
 
           <div style={styles.loginFooter}>
-            Secure financial management powered by VaultPay
+            Secure financial management powered by
+            VaultPay
           </div>
         </div>
-      ) : (
-        /* ================= DASHBOARD ================= */
+      </div>
+    );
+  }
+
+  if (role === "Admin") {
+    return (
+      <div style={styles.page}>
         <div style={styles.dashboardContainer}>
-          <header style={styles.dashboardHeader}>
+          <header
+            style={styles.dashboardHeader}
+          >
             <div style={styles.dashboardBrand}>
-              <div style={styles.smallLogo}>V</div>
+              <div style={styles.smallLogo}>
+                V
+              </div>
 
               <div>
-                <div style={styles.dashboardBrandName}>
+                <div
+                  style={
+                    styles.dashboardBrandName
+                  }
+                >
                   VaultPay
                 </div>
 
                 <div
-                  style={styles.dashboardBrandSubtitle}
+                  style={
+                    styles.dashboardBrandSubtitle
+                  }
                 >
                   Financial Core
                 </div>
               </div>
             </div>
 
-            <button
-              style={styles.logoutButton}
-              onClick={() => {
-                setToken("");
-                setInvoices([]);
-                setMessage("");
-              }}
-            >
-              Logout
-            </button>
+            <div style={styles.headerRight}>
+              <div style={styles.adminBadge}>
+                ADMIN
+              </div>
+
+              <button
+                style={styles.logoutButton}
+                onClick={logout}
+              >
+                Logout
+              </button>
+            </div>
           </header>
 
           <main>
             <div style={styles.dashboardIntro}>
               <div>
                 <p style={styles.eyebrow}>
-                  CLIENT PORTAL
+                  ADMIN PORTAL
                 </p>
 
-                <h1 style={styles.dashboardTitle}>
-                  My Invoices
+                <h1
+                  style={styles.dashboardTitle}
+                >
+                  Invoice Management
                 </h1>
 
-                <p style={styles.dashboardSubtitle}>
-                  Review your outstanding invoices and manage
-                  payments.
+                <p
+                  style={
+                    styles.dashboardSubtitle
+                  }
+                >
+                  Create and manage invoices for
+                  VaultPay clients.
                 </p>
               </div>
 
               <div style={styles.invoiceCount}>
-                <span style={styles.countNumber}>
+                <span
+                  style={styles.countNumber}
+                >
                   {invoices.length}
                 </span>
 
-                <span style={styles.countLabel}>
-                  Invoices
+                <span
+                  style={styles.countLabel}
+                >
+                  Created
                 </span>
               </div>
             </div>
@@ -337,160 +506,657 @@ function App() {
               </div>
             )}
 
-            {invoices.length === 0 ? (
-              <div style={styles.emptyCard}>
-                <div style={styles.emptyIcon}>✓</div>
-
-                <h2 style={styles.emptyTitle}>
-                  No invoices found
-                </h2>
-
-                <p style={styles.emptyText}>
-                  You currently have no invoices associated
-                  with your account.
-                </p>
-              </div>
-            ) : (
-              <div style={styles.invoiceList}>
-                {invoices.map((invoice) => (
-                  <div
-                    style={styles.invoice}
-                    key={invoice._id}
+            <section
+              style={styles.adminCard}
+            >
+              <div
+                style={styles.sectionHeader}
+              >
+                <div>
+                  <p
+                    style={
+                      styles.sectionEyebrow
+                    }
                   >
-                    <div style={styles.invoiceMain}>
-                      <div style={styles.invoiceTop}>
-                        <span
-                          style={styles.invoiceLabel}
-                        >
-                          INVOICE
-                        </span>
+                    NEW INVOICE
+                  </p>
 
-                        <span
-                          style={{
-                            ...styles.statusBadge,
-                            background:
-                              invoice.status === "Paid"
-                                ? "#ecfdf5"
-                                : "#fff7ed",
-                            color:
-                              invoice.status === "Paid"
-                                ? "#047857"
-                                : "#c2410c",
-                          }}
-                        >
-                          <span
-                            style={{
-                              ...styles.statusDot,
-                              background:
-                                invoice.status === "Paid"
-                                  ? "#10b981"
-                                  : "#f97316",
-                            }}
-                          ></span>
+                  <h2
+                    style={
+                      styles.sectionTitle
+                    }
+                  >
+                    Create Invoice
+                  </h2>
 
-                          {invoice.status}
-                        </span>
-                      </div>
+                  <p
+                    style={
+                      styles.sectionSubtitle
+                    }
+                  >
+                    Generate an invoice and assign
+                    it to a client.
+                  </p>
+                </div>
+              </div>
 
-                      <h2
-                        style={styles.invoiceNumber}
+              <form
+                onSubmit={createInvoice}
+                style={styles.formGrid}
+              >
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>
+                    Invoice Number
+                  </label>
+
+                  <input
+                    style={styles.input}
+                    name="invoiceNumber"
+                    value={
+                      invoiceForm.invoiceNumber
+                    }
+                    onChange={
+                      handleInvoiceChange
+                    }
+                    placeholder="INV-1003"
+                    required
+                  />
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>
+                    Client
+                  </label>
+
+                  <select
+                    style={styles.input}
+                    name="clientId"
+                    value={
+                      invoiceForm.clientId
+                    }
+                    onChange={
+                      handleInvoiceChange
+                    }
+                    required
+                  >
+                    <option value="">
+                      Select a client
+                    </option>
+
+                    {clients.map((client) => (
+                      <option
+                        key={client._id}
+                        value={client._id}
                       >
-                        {invoice.invoiceNumber}
-                      </h2>
+                        {client.name} —{" "}
+                        {client.email}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                      <p
-                        style={
-                          styles.invoiceDescription
-                        }
-                      >
-                        {invoice.description}
-                      </p>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>
+                    Description
+                  </label>
 
-                      <div
-                        style={styles.invoiceDetails}
-                      >
-                        <div>
-                          <span
-                            style={styles.detailLabel}
-                          >
-                            Amount
-                          </span>
+                  <input
+                    style={styles.input}
+                    name="description"
+                    value={
+                      invoiceForm.description
+                    }
+                    onChange={
+                      handleInvoiceChange
+                    }
+                    placeholder="Business Consulting Services"
+                    required
+                  />
+                </div>
 
-                          <span style={styles.amount}>
-                            ₹
-                            {Number(
-                              invoice.amount
-                            ).toLocaleString("en-IN")}
-                          </span>
-                        </div>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>
+                    Amount (₹)
+                  </label>
 
-                        <div>
-                          <span
-                            style={styles.detailLabel}
-                          >
-                            Due date
-                          </span>
+                  <input
+                    style={styles.input}
+                    name="amount"
+                    type="number"
+                    min="1"
+                    step="0.01"
+                    value={
+                      invoiceForm.amount
+                    }
+                    onChange={
+                      handleInvoiceChange
+                    }
+                    placeholder="5000"
+                    required
+                  />
+                </div>
 
-                          <span
-                            style={styles.detailValue}
-                          >
-                            {new Date(
-                              invoice.dueDate
-                            ).toLocaleDateString(
-                              "en-IN"
-                            )}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>
+                    Due Date
+                  </label>
 
-                    <div
-                      style={styles.invoiceAction}
+                  <input
+                    style={styles.input}
+                    name="dueDate"
+                    type="date"
+                    value={
+                      invoiceForm.dueDate
+                    }
+                    onChange={
+                      handleInvoiceChange
+                    }
+                    required
+                  />
+                </div>
+
+                <div
+                  style={
+                    styles.formAction
+                  }
+                >
+                  <button
+                    type="submit"
+                    style={
+                      styles.createButton
+                    }
+                  >
+                    Create Invoice
+                    <span
+                      style={styles.arrow}
                     >
-                      {invoice.status !== "Paid" ? (
-                        <button
-                          style={styles.payButton}
-                          onClick={() =>
-                            payInvoice(invoice)
-                          }
-                        >
-                          Pay Now
+                      →
+                    </span>
+                  </button>
+                </div>
+              </form>
+            </section>
 
-                          <span
-                            style={styles.payArrow}
-                          >
-                            →
-                          </span>
-                        </button>
-                      ) : (
+            <section
+              style={styles.invoiceSection}
+            >
+              <div
+                style={styles.listHeader}
+              >
+                <div>
+                  <p
+                    style={
+                      styles.sectionEyebrow
+                    }
+                  >
+                    ACTIVITY
+                  </p>
+
+                  <h2
+                    style={
+                      styles.sectionTitle
+                    }
+                  >
+                    Recent Invoices
+                  </h2>
+                </div>
+
+                <span
+                  style={
+                    styles.listCount
+                  }
+                >
+                  {invoices.length} invoices
+                </span>
+              </div>
+
+              {invoices.length === 0 ? (
+                <div
+                  style={styles.emptyCard}
+                >
+                  <div
+                    style={
+                      styles.emptyIcon
+                    }
+                  >
+                    +
+                  </div>
+
+                  <h2
+                    style={
+                      styles.emptyTitle
+                    }
+                  >
+                    No invoices created yet
+                  </h2>
+
+                  <p
+                    style={
+                      styles.emptyText
+                    }
+                  >
+                    Create your first invoice using
+                    the form above.
+                  </p>
+                </div>
+              ) : (
+                <div
+                  style={
+                    styles.invoiceList
+                  }
+                >
+                  {invoices.map(
+                    (invoice) => (
+                      <div
+                        style={
+                          styles.invoice
+                        }
+                        key={invoice._id}
+                      >
                         <div
                           style={
-                            styles.paidIndicator
+                            styles.invoiceMain
                           }
                         >
-                          <span>✓</span>
-                          Paid
+                          <div
+                            style={
+                              styles.invoiceTop
+                            }
+                          >
+                            <span
+                              style={
+                                styles.invoiceLabel
+                              }
+                            >
+                              INVOICE
+                            </span>
+
+                            <span
+                              style={{
+                                ...styles.statusBadge,
+                                background:
+                                  invoice.status ===
+                                  "Paid"
+                                    ? "#ecfdf5"
+                                    : "#fff7ed",
+                                color:
+                                  invoice.status ===
+                                  "Paid"
+                                    ? "#047857"
+                                    : "#c2410c",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  ...styles.statusDot,
+                                  background:
+                                    invoice.status ===
+                                    "Paid"
+                                      ? "#10b981"
+                                      : "#f97316",
+                                }}
+                              />
+
+                              {invoice.status}
+                            </span>
+                          </div>
+
+                          <h2
+                            style={
+                              styles.invoiceNumber
+                            }
+                          >
+                            {invoice.invoiceNumber}
+                          </h2>
+
+                          <p
+                            style={
+                              styles.invoiceDescription
+                            }
+                          >
+                            {invoice.description}
+                          </p>
+
+                          <div
+                            style={
+                              styles.invoiceDetails
+                            }
+                          >
+                            <div>
+                              <span
+                                style={
+                                  styles.detailLabel
+                                }
+                              >
+                                Amount
+                              </span>
+
+                              <span
+                                style={
+                                  styles.amount
+                                }
+                              >
+                                ₹
+                                {Number(
+                                  invoice.amount
+                                ).toLocaleString(
+                                  "en-IN"
+                                )}
+                              </span>
+                            </div>
+
+                            <div>
+                              <span
+                                style={
+                                  styles.detailLabel
+                                }
+                              >
+                                Due Date
+                              </span>
+
+                              <span
+                                style={
+                                  styles.detailValue
+                                }
+                              >
+                                {new Date(
+                                  invoice.dueDate
+                                ).toLocaleDateString(
+                                  "en-IN"
+                                )}
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                      </div>
+                    )
+                  )}
+                </div>
+              )}
+            </section>
           </main>
 
-          <footer style={styles.dashboardFooter}>
+          <footer
+            style={
+              styles.dashboardFooter
+            }
+          >
             VaultPay Financial Core
           </footer>
         </div>
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <div style={styles.page}>
+      <div style={styles.dashboardContainer}>
+        <header
+          style={styles.dashboardHeader}
+        >
+          <div style={styles.dashboardBrand}>
+            <div style={styles.smallLogo}>
+              V
+            </div>
+
+            <div>
+              <div
+                style={
+                  styles.dashboardBrandName
+                }
+              >
+                VaultPay
+              </div>
+
+              <div
+                style={
+                  styles.dashboardBrandSubtitle
+                }
+              >
+                Financial Core
+              </div>
+            </div>
+          </div>
+
+          <button
+            style={styles.logoutButton}
+            onClick={logout}
+          >
+            Logout
+          </button>
+        </header>
+
+        <main>
+          <div style={styles.dashboardIntro}>
+            <div>
+              <p style={styles.eyebrow}>
+                CLIENT PORTAL
+              </p>
+
+              <h1
+                style={styles.dashboardTitle}
+              >
+                My Invoices
+              </h1>
+
+              <p
+                style={
+                  styles.dashboardSubtitle
+                }
+              >
+                Review your outstanding invoices
+                and manage payments.
+              </p>
+            </div>
+
+            <div style={styles.invoiceCount}>
+              <span
+                style={styles.countNumber}
+              >
+                {invoices.length}
+              </span>
+
+              <span
+                style={styles.countLabel}
+              >
+                Invoices
+              </span>
+            </div>
+          </div>
+
+          {message && (
+            <div style={styles.message}>
+              {message}
+            </div>
+          )}
+
+          {invoices.length === 0 ? (
+            <div style={styles.emptyCard}>
+              <div style={styles.emptyIcon}>
+                ✓
+              </div>
+
+              <h2
+                style={styles.emptyTitle}
+              >
+                No invoices found
+              </h2>
+
+              <p
+                style={styles.emptyText}
+              >
+                You currently have no invoices
+                associated with your account.
+              </p>
+            </div>
+          ) : (
+            <div style={styles.invoiceList}>
+              {invoices.map((invoice) => (
+                <div
+                  style={styles.invoice}
+                  key={invoice._id}
+                >
+                  <div
+                    style={styles.invoiceMain}
+                  >
+                    <div
+                      style={styles.invoiceTop}
+                    >
+                      <span
+                        style={
+                          styles.invoiceLabel
+                        }
+                      >
+                        INVOICE
+                      </span>
+
+                      <span
+                        style={{
+                          ...styles.statusBadge,
+                          background:
+                            invoice.status ===
+                            "Paid"
+                              ? "#ecfdf5"
+                              : "#fff7ed",
+                          color:
+                            invoice.status ===
+                            "Paid"
+                              ? "#047857"
+                              : "#c2410c",
+                        }}
+                      >
+                        <span
+                          style={{
+                            ...styles.statusDot,
+                            background:
+                              invoice.status ===
+                              "Paid"
+                                ? "#10b981"
+                                : "#f97316",
+                          }}
+                        />
+
+                        {invoice.status}
+                      </span>
+                    </div>
+
+                    <h2
+                      style={
+                        styles.invoiceNumber
+                      }
+                    >
+                      {invoice.invoiceNumber}
+                    </h2>
+
+                    <p
+                      style={
+                        styles.invoiceDescription
+                      }
+                    >
+                      {invoice.description}
+                    </p>
+
+                    <div
+                      style={
+                        styles.invoiceDetails
+                      }
+                    >
+                      <div>
+                        <span
+                          style={
+                            styles.detailLabel
+                          }
+                        >
+                          Amount
+                        </span>
+
+                        <span
+                          style={
+                            styles.amount
+                          }
+                        >
+                          ₹
+                          {Number(
+                            invoice.amount
+                          ).toLocaleString(
+                            "en-IN"
+                          )}
+                        </span>
+                      </div>
+
+                      <div>
+                        <span
+                          style={
+                            styles.detailLabel
+                          }
+                        >
+                          Due Date
+                        </span>
+
+                        <span
+                          style={
+                            styles.detailValue
+                          }
+                        >
+                          {new Date(
+                            invoice.dueDate
+                          ).toLocaleDateString(
+                            "en-IN"
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    style={
+                      styles.invoiceAction
+                    }
+                  >
+                    {invoice.status !== "Paid" ? (
+                      <button
+                        style={
+                          styles.payButton
+                        }
+                        onClick={() =>
+                          payInvoice(invoice)
+                        }
+                      >
+                        Pay Now
+                        <span
+                          style={
+                            styles.payArrow
+                          }
+                        >
+                          →
+                        </span>
+                      </button>
+                    ) : (
+                      <div
+                        style={
+                          styles.paidIndicator
+                        }
+                      >
+                        <span>✓</span>
+                        Paid
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </main>
+
+        <footer
+          style={styles.dashboardFooter}
+        >
+          VaultPay Financial Core
+        </footer>
+      </div>
     </div>
   );
 }
-
-/* =========================================================
-   VAULTPAY PROFESSIONAL UI STYLES
-   ========================================================= */
 
 const styles = {
   page: {
@@ -503,8 +1169,6 @@ const styles = {
     color: "#0f172a",
     boxSizing: "border-box",
   },
-
-  /* ================= LOGIN ================= */
 
   loginWrapper: {
     minHeight: "100vh",
@@ -597,7 +1261,6 @@ const styles = {
     color: "#0f172a",
     fontSize: "30px",
     fontWeight: "800",
-    textAlign: "center",
     letterSpacing: "-0.8px",
     lineHeight: "1.2",
   },
@@ -607,7 +1270,6 @@ const styles = {
     maxWidth: "370px",
     color: "#64748b",
     fontSize: "14px",
-    textAlign: "center",
     lineHeight: "1.6",
   },
 
@@ -683,8 +1345,6 @@ const styles = {
     textAlign: "center",
   },
 
-  /* ================= DASHBOARD ================= */
-
   dashboardContainer: {
     width: "100%",
     maxWidth: "1040px",
@@ -733,6 +1393,23 @@ const styles = {
     color: "#64748b",
     fontSize: "11px",
     fontWeight: "500",
+  },
+
+  headerRight: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+  },
+
+  adminBadge: {
+    padding: "7px 10px",
+    borderRadius: "999px",
+    background: "#eff6ff",
+    border: "1px solid #dbeafe",
+    color: "#2563eb",
+    fontSize: "10px",
+    fontWeight: "800",
+    letterSpacing: "0.7px",
   },
 
   logoutButton: {
@@ -813,6 +1490,89 @@ const styles = {
     borderRadius: "10px",
     color: "#334155",
     fontSize: "13px",
+  },
+
+  adminCard: {
+    background: "#ffffff",
+    border: "1px solid #e2e8f0",
+    borderRadius: "16px",
+    padding: "28px",
+    marginBottom: "35px",
+    boxShadow:
+      "0 8px 25px rgba(15, 23, 42, 0.05)",
+  },
+
+  sectionHeader: {
+    marginBottom: "25px",
+  },
+
+  sectionEyebrow: {
+    margin: "0 0 6px",
+    color: "#2563eb",
+    fontSize: "10px",
+    fontWeight: "800",
+    letterSpacing: "1px",
+  },
+
+  sectionTitle: {
+    margin: "0",
+    color: "#0f172a",
+    fontSize: "22px",
+    fontWeight: "800",
+    letterSpacing: "-0.4px",
+  },
+
+  sectionSubtitle: {
+    marginTop: "5px",
+    color: "#64748b",
+    fontSize: "13px",
+  },
+
+  formGrid: {
+    display: "grid",
+    gridTemplateColumns:
+      "repeat(2, minmax(0, 1fr))",
+    gap: "2px 20px",
+  },
+
+  formAction: {
+    display: "flex",
+    alignItems: "flex-end",
+    paddingBottom: "18px",
+  },
+
+  createButton: {
+    width: "100%",
+    padding: "14px 18px",
+    border: "none",
+    borderRadius: "10px",
+    background:
+      "linear-gradient(135deg, #2563eb, #4f46e5)",
+    color: "#ffffff",
+    fontSize: "14px",
+    fontWeight: "700",
+    fontFamily:
+      '"Inter", "Segoe UI", Arial, sans-serif',
+    cursor: "pointer",
+    boxShadow:
+      "0 7px 16px rgba(37, 99, 235, 0.20)",
+  },
+
+  invoiceSection: {
+    marginTop: "5px",
+  },
+
+  listHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    marginBottom: "18px",
+  },
+
+  listCount: {
+    color: "#64748b",
+    fontSize: "12px",
+    fontWeight: "600",
   },
 
   emptyCard: {
