@@ -7,6 +7,32 @@ const Razorpay = require("razorpay");
 
 const router = express.Router();
 
+// Admin: Get all clients
+router.get(
+  "/clients",
+  protect,
+  authorizeRoles("Admin"),
+  async (req, res) => {
+    try {
+      const clients = await User.find(
+        { role: "Client" },
+        { name: 1, email: 1 }
+      ).sort({ name: 1 });
+
+      res.json({
+        clients,
+      });
+    } catch (error) {
+      console.error("Fetch clients error:", error);
+
+      res.status(500).json({
+        message: "Failed to fetch clients",
+        error: error.message,
+      });
+    }
+  }
+);
+
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
   key_secret: process.env.RAZORPAY_KEY_SECRET,
