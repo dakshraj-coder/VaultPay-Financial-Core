@@ -4,18 +4,21 @@ import "./App.css";
 const API_URL = "http://localhost:5000";
 
 function App() {
-
   useEffect(() => {
     const link = document.createElement("link");
+
     link.href =
-    "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap";
+      "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap";
+
     link.rel = "stylesheet";
+
     document.head.appendChild(link);
-    
+
     return () => {
       document.head.removeChild(link);
     };
   }, []);
+
   const [email, setEmail] = useState("client@vaultpay.com");
   const [password, setPassword] = useState("Client@12345");
   const [token, setToken] = useState("");
@@ -86,7 +89,9 @@ function App() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Failed to create Razorpay order");
+        throw new Error(
+          data.message || "Failed to create Razorpay order"
+        );
       }
 
       if (!window.Razorpay) {
@@ -130,7 +135,8 @@ function App() {
 
             if (!verifyResponse.ok) {
               throw new Error(
-                verifyData.message || "Payment verification failed"
+                verifyData.message ||
+                  "Payment verification failed"
               );
             }
 
@@ -148,7 +154,7 @@ function App() {
         },
 
         theme: {
-          color: "#111827",
+          color: "#2563eb",
         },
 
         modal: {
@@ -178,271 +184,818 @@ function App() {
 
   return (
     <div style={styles.page}>
-      <div style={styles.container}>
-        <h1 style={styles.title}>VaultPay</h1>
-        <p style={styles.subtitle}>Financial Core</p>
+      {!token ? (
+        /* ================= LOGIN PAGE ================= */
+        <div style={styles.loginWrapper}>
+          <div style={styles.loginBrand}>
+            <div style={styles.logoMark}>V</div>
 
-        {!token ? (
-          <div style={styles.card}>
-            <h2 style={styles.loginTitle}>Welcome back</h2>
-            <p style={styles.loginSubtitle}>
-              Sign in to manage your VaultPay invoices
-            </p>
+            <div>
+              <div style={styles.brandName}>VaultPay</div>
 
-            <input
-              style={styles.input}
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email"
-            />
-
-            <input
-              style={styles.input}
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
-            />
-
-            <button style={styles.button} onClick={login}>
-              Login
-            </button>
-
-            {message && <p>{message}</p>}
+              <div style={styles.brandSubtitle}>
+                Financial Core
+              </div>
+            </div>
           </div>
-        ) : (
-          <div>
-            <div style={styles.header}>
-              <h2>My Invoices</h2>
 
-              <button
-                style={styles.logoutButton}
-                onClick={() => {
-                  setToken("");
-                  setInvoices([]);
-                  setMessage("");
-                }}
-              >
-                Logout
-              </button>
+          <div style={styles.loginCard}>
+            <div style={styles.loginHeader}>
+              <div style={styles.securityBadge}>
+                <span style={styles.securityDot}></span>
+                SECURE ACCESS
+              </div>
+
+              <h1 style={styles.loginTitle}>
+                Welcome back
+              </h1>
+
+              <p style={styles.loginDescription}>
+                Sign in to manage your VaultPay invoices and
+                payments.
+              </p>
             </div>
 
-            {message && <p style={styles.message}>{message}</p>}
+            <div style={styles.formGroup}>
+              <label style={styles.label}>
+                Email address
+              </label>
 
-            {invoices.length === 0 ? (
-              <div style={styles.card}>
-                <p>No invoices found.</p>
+              <input
+                style={styles.input}
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email"
+              />
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>
+                Password
+              </label>
+
+              <input
+                style={styles.input}
+                type="password"
+                value={password}
+                onChange={(e) =>
+                  setPassword(e.target.value)
+                }
+                placeholder="Enter your password"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    login();
+                  }
+                }}
+              />
+            </div>
+
+            <button
+              style={styles.loginButton}
+              onClick={login}
+            >
+              <span>Sign in</span>
+
+              <span style={styles.arrow}>→</span>
+            </button>
+
+            {message && (
+              <div style={styles.loginMessage}>
+                {message}
               </div>
-            ) : (
-              invoices.map((invoice) => (
-                <div style={styles.invoice} key={invoice._id}>
-                  <div>
-                    <h3>{invoice.invoiceNumber}</h3>
-
-                    <p>{invoice.description}</p>
-
-                    <p>
-                      <strong>Amount:</strong> ₹
-                      {Number(invoice.amount).toLocaleString("en-IN")}
-                    </p>
-
-                    <p>
-                      <strong>Due Date:</strong>{" "}
-                      {new Date(invoice.dueDate).toLocaleDateString(
-                        "en-IN"
-                      )}
-                    </p>
-
-                    <p style={{ marginTop: "12px" }}>
-                      <strong>Status:</strong>{" "}
-                      <span
-                      style={{
-                        display: "inline-block",
-                        marginLeft: "6px",
-                        padding: "5px 10px",
-                        borderRadius: "20px",
-                        fontSize: "12px",
-                        fontWeight: "600",
-                        background:invoice.status === "Paid" ? "#ecfdf3" : "#fff7ed",
-                        color:
-                        invoice.status === "Paid" ? "#16804a" : "#c2410c",
-                      }}
-                      >
-                        {invoice.status}
-                        </span>
-                        </p>
-                  </div>
-
-                  {invoice.status !== "Paid" && (
-                    <button
-                      style={styles.payButton}
-                      onClick={() => payInvoice(invoice)}
-                    >
-                      Pay Now
-                    </button>
-                  )}
-                </div>
-              ))
             )}
           </div>
-        )}
-      </div>
+
+          <div style={styles.loginFooter}>
+            Secure financial management powered by VaultPay
+          </div>
+        </div>
+      ) : (
+        /* ================= DASHBOARD ================= */
+        <div style={styles.dashboardContainer}>
+          <header style={styles.dashboardHeader}>
+            <div style={styles.dashboardBrand}>
+              <div style={styles.smallLogo}>V</div>
+
+              <div>
+                <div style={styles.dashboardBrandName}>
+                  VaultPay
+                </div>
+
+                <div
+                  style={styles.dashboardBrandSubtitle}
+                >
+                  Financial Core
+                </div>
+              </div>
+            </div>
+
+            <button
+              style={styles.logoutButton}
+              onClick={() => {
+                setToken("");
+                setInvoices([]);
+                setMessage("");
+              }}
+            >
+              Logout
+            </button>
+          </header>
+
+          <main>
+            <div style={styles.dashboardIntro}>
+              <div>
+                <p style={styles.eyebrow}>
+                  CLIENT PORTAL
+                </p>
+
+                <h1 style={styles.dashboardTitle}>
+                  My Invoices
+                </h1>
+
+                <p style={styles.dashboardSubtitle}>
+                  Review your outstanding invoices and manage
+                  payments.
+                </p>
+              </div>
+
+              <div style={styles.invoiceCount}>
+                <span style={styles.countNumber}>
+                  {invoices.length}
+                </span>
+
+                <span style={styles.countLabel}>
+                  Invoices
+                </span>
+              </div>
+            </div>
+
+            {message && (
+              <div style={styles.message}>
+                {message}
+              </div>
+            )}
+
+            {invoices.length === 0 ? (
+              <div style={styles.emptyCard}>
+                <div style={styles.emptyIcon}>✓</div>
+
+                <h2 style={styles.emptyTitle}>
+                  No invoices found
+                </h2>
+
+                <p style={styles.emptyText}>
+                  You currently have no invoices associated
+                  with your account.
+                </p>
+              </div>
+            ) : (
+              <div style={styles.invoiceList}>
+                {invoices.map((invoice) => (
+                  <div
+                    style={styles.invoice}
+                    key={invoice._id}
+                  >
+                    <div style={styles.invoiceMain}>
+                      <div style={styles.invoiceTop}>
+                        <span
+                          style={styles.invoiceLabel}
+                        >
+                          INVOICE
+                        </span>
+
+                        <span
+                          style={{
+                            ...styles.statusBadge,
+                            background:
+                              invoice.status === "Paid"
+                                ? "#ecfdf5"
+                                : "#fff7ed",
+                            color:
+                              invoice.status === "Paid"
+                                ? "#047857"
+                                : "#c2410c",
+                          }}
+                        >
+                          <span
+                            style={{
+                              ...styles.statusDot,
+                              background:
+                                invoice.status === "Paid"
+                                  ? "#10b981"
+                                  : "#f97316",
+                            }}
+                          ></span>
+
+                          {invoice.status}
+                        </span>
+                      </div>
+
+                      <h2
+                        style={styles.invoiceNumber}
+                      >
+                        {invoice.invoiceNumber}
+                      </h2>
+
+                      <p
+                        style={
+                          styles.invoiceDescription
+                        }
+                      >
+                        {invoice.description}
+                      </p>
+
+                      <div
+                        style={styles.invoiceDetails}
+                      >
+                        <div>
+                          <span
+                            style={styles.detailLabel}
+                          >
+                            Amount
+                          </span>
+
+                          <span style={styles.amount}>
+                            ₹
+                            {Number(
+                              invoice.amount
+                            ).toLocaleString("en-IN")}
+                          </span>
+                        </div>
+
+                        <div>
+                          <span
+                            style={styles.detailLabel}
+                          >
+                            Due date
+                          </span>
+
+                          <span
+                            style={styles.detailValue}
+                          >
+                            {new Date(
+                              invoice.dueDate
+                            ).toLocaleDateString(
+                              "en-IN"
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div
+                      style={styles.invoiceAction}
+                    >
+                      {invoice.status !== "Paid" ? (
+                        <button
+                          style={styles.payButton}
+                          onClick={() =>
+                            payInvoice(invoice)
+                          }
+                        >
+                          Pay Now
+
+                          <span
+                            style={styles.payArrow}
+                          >
+                            →
+                          </span>
+                        </button>
+                      ) : (
+                        <div
+                          style={
+                            styles.paidIndicator
+                          }
+                        >
+                          <span>✓</span>
+                          Paid
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </main>
+
+          <footer style={styles.dashboardFooter}>
+            VaultPay Financial Core
+          </footer>
+        </div>
+      )}
     </div>
   );
 }
 
+/* =========================================================
+   VAULTPAY PROFESSIONAL UI STYLES
+   ========================================================= */
+
 const styles = {
   page: {
     minHeight: "100vh",
-    background: "#f1f5f9",
-    padding: "48px 24px",
-    fontFamily: "'Inter', 'Segoe UI', Arial, sans-serif",
+    background:
+      "linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%)",
+    padding: "0",
+    fontFamily:
+      '"Inter", "Segoe UI", Arial, sans-serif',
     color: "#0f172a",
     boxSizing: "border-box",
   },
 
-  container: {
-    width: "100%",
-    maxWidth: "920px",
-    margin: "0 auto",
+  /* ================= LOGIN ================= */
+
+  loginWrapper: {
+    minHeight: "100vh",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "40px 20px",
+    boxSizing: "border-box",
   },
 
-  title: {
-    margin: 0,
-    fontSize: "46px",
+  loginBrand: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    marginBottom: "30px",
+  },
+
+  logoMark: {
+    width: "48px",
+    height: "48px",
+    borderRadius: "14px",
+    background:
+      "linear-gradient(135deg, #2563eb, #4f46e5)",
+    color: "#ffffff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "24px",
     fontWeight: "800",
-    letterSpacing: "-2px",
+    boxShadow:
+      "0 8px 20px rgba(37, 99, 235, 0.25)",
+  },
+
+  brandName: {
+    fontSize: "24px",
+    fontWeight: "800",
+    letterSpacing: "-0.6px",
     color: "#0f172a",
-    textAlign: "center",
-    lineHeight: "1.1",
   },
 
-  subtitle: {
-    marginTop: "8px",
-    color: "#64748b",
-    fontSize: "15px",
+  brandSubtitle: {
+    marginTop: "2px",
+    fontSize: "13px",
     fontWeight: "500",
-    textAlign: "center",
-    letterSpacing: "0.2px",
+    color: "#64748b",
   },
 
-  card: {
+  loginCard: {
+    width: "100%",
+    maxWidth: "470px",
     background: "#ffffff",
-    padding: "40px",
-    borderRadius: "16px",
-    marginTop: "32px",
     border: "1px solid #e2e8f0",
-    boxShadow: "0 12px 30px rgba(15, 23, 42, 0.06)",
+    borderRadius: "20px",
+    padding: "38px",
     boxSizing: "border-box",
+    boxShadow:
+      "0 20px 50px rgba(15, 23, 42, 0.10)",
+  },
+
+  loginHeader: {
+    textAlign: "center",
+    marginBottom: "30px",
+  },
+
+  securityBadge: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "7px",
+    padding: "7px 12px",
+    borderRadius: "999px",
+    background: "#eff6ff",
+    border: "1px solid #dbeafe",
+    color: "#2563eb",
+    fontSize: "11px",
+    fontWeight: "700",
+    letterSpacing: "0.8px",
+    marginBottom: "20px",
+  },
+
+  securityDot: {
+    width: "7px",
+    height: "7px",
+    borderRadius: "50%",
+    background: "#2563eb",
   },
 
   loginTitle: {
-    margin: "0 0 8px",
+    margin: "0",
     color: "#0f172a",
     fontSize: "30px",
-    fontWeight: "750",
+    fontWeight: "800",
     textAlign: "center",
     letterSpacing: "-0.8px",
     lineHeight: "1.2",
   },
 
-  loginSubtitle: {
-    margin: "0 0 26px",
+  loginDescription: {
+    margin: "10px auto 0",
+    maxWidth: "370px",
     color: "#64748b",
     fontSize: "14px",
     textAlign: "center",
-    lineHeight: "1.5",
+    lineHeight: "1.6",
+  },
+
+  formGroup: {
+    marginBottom: "18px",
+  },
+
+  label: {
+    display: "block",
+    marginBottom: "8px",
+    color: "#334155",
+    fontSize: "13px",
+    fontWeight: "700",
   },
 
   input: {
     display: "block",
     width: "100%",
     boxSizing: "border-box",
-    padding: "15px 16px",
-    marginTop: "14px",
+    padding: "14px 15px",
     border: "1px solid #cbd5e1",
-    borderRadius: "9px",
+    borderRadius: "10px",
     fontSize: "15px",
-    fontFamily: "'Inter', 'Segoe UI', Arial, sans-serif",
+    fontFamily:
+      '"Inter", "Segoe UI", Arial, sans-serif',
     outline: "none",
     background: "#ffffff",
     color: "#0f172a",
   },
 
-  button: {
+  loginButton: {
     width: "100%",
-    padding: "15px",
-    marginTop: "20px",
+    padding: "14px 18px",
+    marginTop: "5px",
     border: "none",
-    borderRadius: "9px",
-    background: "#0f172a",
+    borderRadius: "10px",
+    background:
+      "linear-gradient(135deg, #2563eb, #4f46e5)",
     color: "#ffffff",
     fontSize: "15px",
     fontWeight: "700",
-    fontFamily: "'Inter', 'Segoe UI', Arial, sans-serif",
+    fontFamily:
+      '"Inter", "Segoe UI", Arial, sans-serif',
     cursor: "pointer",
-    letterSpacing: "0.1px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "10px",
+    boxShadow:
+      "0 8px 18px rgba(37, 99, 235, 0.22)",
   },
 
-  header: {
+  arrow: {
+    fontSize: "18px",
+    lineHeight: "1",
+  },
+
+  loginMessage: {
+    marginTop: "18px",
+    padding: "11px 14px",
+    borderRadius: "9px",
+    background: "#f8fafc",
+    border: "1px solid #e2e8f0",
+    color: "#475569",
+    fontSize: "13px",
+    textAlign: "center",
+  },
+
+  loginFooter: {
+    marginTop: "24px",
+    color: "#94a3b8",
+    fontSize: "12px",
+    textAlign: "center",
+  },
+
+  /* ================= DASHBOARD ================= */
+
+  dashboardContainer: {
+    width: "100%",
+    maxWidth: "1040px",
+    margin: "0 auto",
+    padding: "34px 28px 30px",
+    boxSizing: "border-box",
+  },
+
+  dashboardHeader: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    marginTop: "38px",
-    marginBottom: "22px",
-    paddingBottom: "16px",
+    paddingBottom: "25px",
     borderBottom: "1px solid #e2e8f0",
   },
 
+  dashboardBrand: {
+    display: "flex",
+    alignItems: "center",
+    gap: "11px",
+  },
+
+  smallLogo: {
+    width: "38px",
+    height: "38px",
+    borderRadius: "11px",
+    background:
+      "linear-gradient(135deg, #2563eb, #4f46e5)",
+    color: "#ffffff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "19px",
+    fontWeight: "800",
+  },
+
+  dashboardBrandName: {
+    fontSize: "18px",
+    fontWeight: "800",
+    color: "#0f172a",
+    letterSpacing: "-0.3px",
+  },
+
+  dashboardBrandSubtitle: {
+    marginTop: "1px",
+    color: "#64748b",
+    fontSize: "11px",
+    fontWeight: "500",
+  },
+
   logoutButton: {
-    padding: "10px 16px",
+    padding: "9px 16px",
     border: "1px solid #cbd5e1",
-    borderRadius: "8px",
+    borderRadius: "9px",
     background: "#ffffff",
     color: "#334155",
-    fontSize: "14px",
+    fontSize: "13px",
     fontWeight: "600",
-    fontFamily: "'Inter', 'Segoe UI', Arial, sans-serif",
     cursor: "pointer",
+  },
+
+  dashboardIntro: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    gap: "30px",
+    marginTop: "42px",
+    marginBottom: "28px",
+  },
+
+  eyebrow: {
+    margin: "0 0 7px",
+    color: "#2563eb",
+    fontSize: "11px",
+    fontWeight: "800",
+    letterSpacing: "1.2px",
+  },
+
+  dashboardTitle: {
+    margin: "0",
+    color: "#0f172a",
+    fontSize: "36px",
+    fontWeight: "800",
+    letterSpacing: "-1px",
+    lineHeight: "1.15",
+  },
+
+  dashboardSubtitle: {
+    marginTop: "8px",
+    color: "#64748b",
+    fontSize: "14px",
+    lineHeight: "1.5",
+  },
+
+  invoiceCount: {
+    minWidth: "90px",
+    padding: "13px 17px",
+    background: "#ffffff",
+    border: "1px solid #e2e8f0",
+    borderRadius: "12px",
+    textAlign: "center",
+    boxShadow:
+      "0 5px 15px rgba(15, 23, 42, 0.04)",
+  },
+
+  countNumber: {
+    display: "block",
+    color: "#0f172a",
+    fontSize: "22px",
+    fontWeight: "800",
+  },
+
+  countLabel: {
+    display: "block",
+    marginTop: "2px",
+    color: "#64748b",
+    fontSize: "11px",
+    fontWeight: "600",
   },
 
   message: {
     padding: "13px 16px",
+    marginBottom: "18px",
+    background: "#ffffff",
+    border: "1px solid #dbeafe",
+    borderRadius: "10px",
+    color: "#334155",
+    fontSize: "13px",
+  },
+
+  emptyCard: {
     background: "#ffffff",
     border: "1px solid #e2e8f0",
-    borderRadius: "9px",
-    color: "#334155",
-    fontSize: "14px",
-    lineHeight: "1.5",
-    marginBottom: "16px",
+    borderRadius: "16px",
+    padding: "60px 30px",
+    textAlign: "center",
+    boxShadow:
+      "0 8px 25px rgba(15, 23, 42, 0.05)",
+  },
+
+  emptyIcon: {
+    width: "50px",
+    height: "50px",
+    margin: "0 auto 18px",
+    borderRadius: "50%",
+    background: "#eff6ff",
+    color: "#2563eb",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "22px",
+    fontWeight: "800",
+  },
+
+  emptyTitle: {
+    margin: "0",
+    color: "#0f172a",
+    fontSize: "20px",
+    fontWeight: "700",
+  },
+
+  emptyText: {
+    marginTop: "8px",
+    color: "#64748b",
+    fontSize: "13px",
+  },
+
+  invoiceList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "14px",
   },
 
   invoice: {
     background: "#ffffff",
-    padding: "24px",
-    borderRadius: "14px",
-    marginTop: "14px",
+    padding: "25px",
+    borderRadius: "15px",
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    gap: "24px",
+    gap: "25px",
     border: "1px solid #e2e8f0",
-    boxShadow: "0 6px 18px rgba(15, 23, 42, 0.04)",
-    boxSizing: "border-box",
+    boxShadow:
+      "0 6px 20px rgba(15, 23, 42, 0.05)",
+  },
+
+  invoiceMain: {
+    flex: "1",
+    minWidth: "0",
+  },
+
+  invoiceTop: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "12px",
+  },
+
+  invoiceLabel: {
+    color: "#94a3b8",
+    fontSize: "10px",
+    fontWeight: "800",
+    letterSpacing: "1px",
+  },
+
+  statusBadge: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "6px",
+    padding: "5px 9px",
+    borderRadius: "999px",
+    fontSize: "11px",
+    fontWeight: "700",
+  },
+
+  statusDot: {
+    width: "6px",
+    height: "6px",
+    borderRadius: "50%",
+  },
+
+  invoiceNumber: {
+    margin: "12px 0 5px",
+    color: "#0f172a",
+    fontSize: "21px",
+    fontWeight: "800",
+    letterSpacing: "-0.4px",
+  },
+
+  invoiceDescription: {
+    margin: "0",
+    color: "#64748b",
+    fontSize: "13px",
+  },
+
+  invoiceDetails: {
+    display: "flex",
+    alignItems: "center",
+    gap: "45px",
+    marginTop: "20px",
+  },
+
+  detailLabel: {
+    display: "block",
+    marginBottom: "5px",
+    color: "#94a3b8",
+    fontSize: "10px",
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: "0.6px",
+  },
+
+  amount: {
+    display: "block",
+    color: "#0f172a",
+    fontSize: "17px",
+    fontWeight: "800",
+  },
+
+  detailValue: {
+    display: "block",
+    color: "#334155",
+    fontSize: "14px",
+    fontWeight: "600",
+  },
+
+  invoiceAction: {
+    flexShrink: "0",
   },
 
   payButton: {
-    padding: "12px 22px",
+    padding: "11px 19px",
     border: "none",
-    borderRadius: "8px",
-    background: "#0f172a",
+    borderRadius: "9px",
+    background:
+      "linear-gradient(135deg, #2563eb, #4f46e5)",
     color: "#ffffff",
-    fontSize: "14px",
+    fontSize: "13px",
     fontWeight: "700",
-    fontFamily: "'Inter', 'Segoe UI', Arial, sans-serif",
+    fontFamily:
+      '"Inter", "Segoe UI", Arial, sans-serif',
     cursor: "pointer",
     whiteSpace: "nowrap",
+    boxShadow:
+      "0 6px 15px rgba(37, 99, 235, 0.20)",
+  },
+
+  payArrow: {
+    marginLeft: "8px",
+    fontSize: "16px",
+  },
+
+  paidIndicator: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "7px",
+    padding: "10px 15px",
+    borderRadius: "9px",
+    background: "#ecfdf5",
+    color: "#047857",
+    fontSize: "13px",
+    fontWeight: "700",
+  },
+
+  dashboardFooter: {
+    marginTop: "45px",
+    paddingTop: "20px",
+    borderTop: "1px solid #e2e8f0",
+    textAlign: "center",
+    color: "#94a3b8",
+    fontSize: "11px",
   },
 };
 
