@@ -47,7 +47,7 @@ VaultPay-Financial-Core/
 ├── .gitignore
 └── README.md
 
-🛠️ Technologies Used
+##🛠️ Technologies Used
 Frontend
 React
 Vite
@@ -65,7 +65,8 @@ Development Tools
 Git
 GitHub
 Visual Studio Code
-🔐 Authentication & Authorization
+
+##🔐 Authentication & Authorization
 
 VaultPay uses authentication and role-based authorization to protect application resources.
 
@@ -79,9 +80,9 @@ Authorization checks for invoice ownership
 
 Clients can only access invoices associated with their account.
 
-👨‍💼 Admin Workflow
+##👨‍💼 Admin Workflow
 
-The Admin can:
+```The Admin can:
 
 Sign in securely.
 View registered clients.
@@ -89,9 +90,10 @@ View and manage invoices.
 Create invoices for clients.
 View invoice information.
 Log out securely.
-👤 Client Workflow
 
-The Client can:
+##👤 Client Workflow
+
+```The Client can:
 
 Sign in securely.
 View their invoices.
@@ -99,7 +101,8 @@ Review invoice details.
 Make payments.
 View updated payment status.
 Log out securely.
-🧾 Invoice Management
+
+##🧾 Invoice Management
 
 Invoices contain important information such as:
 
@@ -110,7 +113,7 @@ Amount
 Due date
 Payment status
 
-Example:
+##Example:
 
 Invoice Number: INV-1001
 Description: Business Consulting Services
